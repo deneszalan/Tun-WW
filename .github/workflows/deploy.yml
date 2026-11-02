@@ -24,10 +24,21 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
+      ready: ${{ steps.sha.outputs.ready }}
       published: ${{ steps.last.outputs.cache-hit }}
     steps:
+      # Until the Tunisia app is on instasmart's main branch there is nothing to publish (`--mode tunisia` would build
+      # instasmart's main app instead), so the build waits for its folder to appear.
       - id: sha
-        run: echo "sha=$(git ls-remote https://github.com/deneszalan/instasmart refs/heads/main | cut -f1)" >> "$GITHUB_OUTPUT"
+        run: |
+          sha=$(git ls-remote https://github.com/deneszalan/instasmart refs/heads/main | cut -f1)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if curl -sfo /dev/null "https://raw.githubusercontent.com/deneszalan/instasmart/$sha/editions/tunisia/README.md"; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "instasmart's main branch has no Tunisia app yet: nothing to publish."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
       # A cache entry named after the commit marks it as published.
       - id: last
         uses: actions/cache/restore@v4
@@ -38,7 +49,7 @@ jobs:
 
   build:
     needs: check
-    if: needs.check.outputs.published != 'true' || github.event_name == 'workflow_dispatch'
+    if: needs.check.outputs.ready == 'true' && (needs.check.outputs.published != 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
