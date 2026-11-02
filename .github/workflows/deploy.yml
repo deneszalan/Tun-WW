@@ -1,0 +1,72 @@
+# Publishes Tunisia 1943 (Tunisie 1943), an app built from the Reckon code in deneszalan/instasmart: its posts live
+# there in editions/tunisia/. This builds instasmart's main branch with `vite build --mode tunisia` and publishes the
+# result here, at https://deneszalan.github.io/Tun-WW/. It runs every hour, but builds only when instasmart's
+# main branch has changed since the last publish; run it by hand (Actions → Deploy → Run workflow) to publish now.
+# One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+name: Deploy
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+      published: ${{ steps.last.outputs.cache-hit }}
+    steps:
+      - id: sha
+        run: echo "sha=$(git ls-remote https://github.com/deneszalan/instasmart refs/heads/main | cut -f1)" >> "$GITHUB_OUTPUT"
+      # A cache entry named after the commit marks it as published.
+      - id: last
+        uses: actions/cache/restore@v4
+        with:
+          path: .published
+          key: published-${{ steps.sha.outputs.sha }}
+          lookup-only: true
+
+  build:
+    needs: check
+    if: needs.check.outputs.published != 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: deneszalan/instasmart
+          ref: ${{ needs.check.outputs.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run content
+      - run: npx vite build --mode tunisia
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/tunisia
+
+  deploy:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - run: mkdir -p .published && echo "${{ needs.check.outputs.sha }}" > .published/sha
+      - uses: actions/cache/save@v4
+        with:
+          path: .published
+          key: published-${{ needs.check.outputs.sha }}
