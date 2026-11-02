@@ -4,4 +4,4 @@ The Second World War in Tunisia in short animations, quizzes and hands-on experi
 
 **The app: https://deneszalan.github.io/Tun-WW/**
 
-This repository only publishes the app. Its posts and code live in [deneszalan/instasmart](https://github.com/deneszalan/instasmart), in `editions/tunisia/`; see its README there. The workflow in `.github/workflows/deploy.yml` builds instasmart's main branch every hour when it has changed, and publishes it here.
+This repository only publishes the app. Its posts and code live in [deneszalan/instasmart](https://github.com/deneszalan/instasmart), in `editions/tunisia/`; see its README there. The workflow in `.github/workflows/deploy.yml` builds instasmart's main branch and publishes it here: every hour when that branch has changed, whenever this repository changes, or by hand (Actions → Deploy → Run workflow). Pages is set to publish from GitHub Actions (Settings → Pages).
