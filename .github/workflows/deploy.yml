@@ -1,7 +1,8 @@
 # Publishes Tunisia 1943 (Tunisie 1943), an app built from the Reckon code in deneszalan/instasmart: its posts live
 # there in editions/tunisia/. This builds instasmart's main branch with `vite build --mode tunisia` and publishes the
-# result here, at https://deneszalan.github.io/Tun-WW/. It runs every hour, but builds only when instasmart's
-# main branch has changed since the last publish; run it by hand (Actions → Deploy → Run workflow) to publish now.
+# result here, at https://deneszalan.github.io/Tun-WW/. A push to this repository publishes the instasmart commit
+# named in `instasmart.sha` (write a new commit there to publish it); the hourly run and a run by hand
+# (Actions → Deploy → Run workflow) publish instasmart's main branch, the hourly one only when it has changed.
 # One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
 name: Deploy
 
@@ -32,9 +33,18 @@ jobs:
     steps:
       # Until the Tunisia app is on instasmart's main branch there is nothing to publish (`--mode tunisia` would build
       # instasmart's main app instead), so the build waits for its folder to appear.
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: instasmart.sha
+          sparse-checkout-cone-mode: false
       - id: sha
         run: |
-          sha=$(git ls-remote https://github.com/deneszalan/instasmart refs/heads/main | cut -f1)
+          if [ "${{ github.event_name }}" = push ] && [ -s instasmart.sha ]; then
+            sha=$(tr -d '[:space:]' < instasmart.sha)
+          else
+            sha=$(git ls-remote https://github.com/deneszalan/instasmart refs/heads/main | cut -f1)
+          fi
+          echo "Publishing instasmart $sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           if curl -sfo /dev/null "https://raw.githubusercontent.com/deneszalan/instasmart/$sha/editions/tunisia/README.md"; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -52,7 +62,7 @@ jobs:
 
   build:
     needs: check
-    if: needs.check.outputs.ready == 'true' && (needs.check.outputs.published != 'true' || github.event_name == 'workflow_dispatch')
+    if: needs.check.outputs.ready == 'true' && (needs.check.outputs.published != 'true' || github.event_name != 'schedule')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
